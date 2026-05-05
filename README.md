@@ -1,3 +1,2 @@
-# python-starter
+# cotlar-stein
 
-Minimal starter project.
