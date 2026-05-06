@@ -284,27 +284,118 @@ The project samples random matrices satisfying:
 \|T\|_2 \le 1.
 ```
 
-Two samplers are implemented.
+There are two implemented samplers. They have different mathematical meanings.
 
-### 1. `scaled_gaussian`
+### 1. `scaled_gaussian`: fast random contractions
 
 This is the fast default sampler.
 
-It samples a Gaussian random matrix and rescales it so that its spectral norm is at most 1.
+The sampler does the following:
 
-This sampler is useful for fast experiments, but it is **not uniform** from the spectral-norm unit ball.
+1. Draw a random Gaussian matrix `G`.
+2. Compute its induced matrix 2-norm, also called the spectral norm.
+3. Rescale the matrix so that its spectral norm is at most 1.
 
-Use this sampler for most exploratory runs.
+In formula form, the output is approximately of the form:
 
-### 2. `rejection`
+```math
+T = \rho \frac{G}{\|G\|_2},
+\qquad
+0 \le \rho \le 1.
+```
 
-This is an exact rejection sampler.
+Therefore,
 
-It samples uniformly from a containing Frobenius norm ball and rejects candidates whose spectral norm exceeds 1.
+```math
+\|T\|_2
+=
+\rho
+\left\|\frac{G}{\|G\|_2}\right\|_2
+=
+\rho
+\le
+1.
+```
 
-This is exact with respect to Lebesgue measure on the spectral-norm unit ball, but it becomes slow as `N` grows.
+So every sampled matrix satisfies the required contraction condition:
 
-Use this sampler only for small dimensions, such as `N = 2, 3, 4`.
+```math
+\|T\|_2 \le 1.
+```
+
+However, this sampler is **not uniform** from the spectral-norm unit ball.
+
+The reason is that Gaussian matrices have their own preferred distribution of directions. After normalizing by `||G||_2`, the matrix lands on the spectral-norm boundary, but the directions are not uniformly distributed over that boundary. The radial factor does not fix this directional bias.
+
+Thus, `scaled_gaussian` should be interpreted as a fast random contraction model, not exact uniform sampling from the spectral-norm ball.
+
+This sampler is useful for exploratory experiments because it is fast and always returns a valid contraction.
+
+### 2. `rejection`: exact uniform sampling from the spectral-norm ball
+
+This sampler is designed to sample uniformly from the spectral-norm unit ball:
+
+```math
+\mathbb{B}_2
+=
+\{T : \|T\|_2 \le 1\}.
+```
+
+Direct uniform sampling from this set is difficult because the spectral-norm ball has a complicated shape.
+
+Instead, the code samples from a larger and simpler ball: the Frobenius-norm ball of radius `sqrt(N)`,
+
+```math
+\mathbb{B}_F(\sqrt{N})
+=
+\{T : \|T\|_F \le \sqrt{N}\}.
+```
+
+This Frobenius ball contains the spectral-norm unit ball. Indeed,
+
+```math
+\|T\|_F \le \sqrt{N}\,\|T\|_2.
+```
+
+Therefore, if `||T||_2 <= 1`, then:
+
+```math
+\|T\|_F \le \sqrt{N}.
+```
+
+Hence:
+
+```math
+\mathbb{B}_2
+\subseteq
+\mathbb{B}_F(\sqrt{N}).
+```
+
+The rejection sampler then does this:
+
+1. Sample a matrix uniformly from the Frobenius ball `B_F(sqrt(N))`.
+2. Check whether `||T||_2 <= 1`.
+3. If yes, accept the matrix.
+4. If no, reject it and try again.
+
+This gives exact uniform sampling from the spectral-norm ball by the usual rejection-sampling principle: if one samples uniformly from a larger set and accepts exactly the points that lie in a smaller subset, then the accepted points are uniformly distributed on that smaller subset.
+
+The downside is speed. The Frobenius ball is much larger than the spectral-norm ball, especially as `N` grows. Most proposals may have spectral norm greater than 1 and therefore get rejected.
+
+For this reason, `rejection` is mathematically closer to exact uniform sampling, but it is practical only for small dimensions, such as `N = 2, 3, 4`.
+
+### Summary of sampler choices
+
+| Sampler | Meaning | Uniform from spectral-norm ball? | Speed |
+|---|---|---:|---:|
+| `scaled_gaussian` | Fast random contraction model | No | Fast |
+| `rejection` | Exact uniform spectral-ball sampler | Yes | Slow |
+
+Recommended workflow:
+
+1. Use `scaled_gaussian` for most exploratory runs.
+2. Use `rejection` only for small `N`.
+3. Compare the two samplers at small dimensions to see whether the qualitative behavior changes.
 
 ---
 
