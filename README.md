@@ -7,23 +7,45 @@ The experiments are designed to answer questions such as:
 - How many randomly sampled operators can be accepted under a Cotlar-Stein admissibility rule?
 - How large is the norm of the accepted operator sum?
 - How close is the observed norm of the sum to the Cotlar-Stein upper bound?
-- In the stopping-time version, how many random draws are needed to accept $K$ operators?
+- In the stopping-time version, how many random draws are needed to accept `K` operators?
+
+---
+
+## Note on GitHub math formatting
+
+GitHub can be sensitive about how Markdown math is delimited. This README uses fenced `math` blocks for displayed equations:
+
+````markdown
+```math
+a^2+b^2=c^2
+```
+````
+
+This is usually more robust on GitHub than using `\[...\]` or deeply indented `$$...$$` blocks, especially inside lists.
 
 ---
 
 ## Mathematical setup
 
-Let $H = \mathbb{R}^N$ or $H = \mathbb{C}^N$, where $N$ is the dimension of the Hilbert space. Operators on $H$ are represented by $N \times N$ matrices.
+Let `H` be either a real or complex finite-dimensional Hilbert space:
 
-For a finite ordered family of accepted operators
+```math
+H = \mathbb{R}^N
+\quad \text{or} \quad
+H = \mathbb{C}^N.
+```
 
-$$
-\mathcal{S} = (S_1, \ldots, S_r),
-$$
+Here `N` is the dimension of the Hilbert space. Operators on `H` are represented by `N x N` matrices.
 
-define two scalar matrices
+For a finite ordered family of accepted operators,
 
-$$
+```math
+\mathcal{S}=(S_1,\ldots,S_r),
+```
+
+define two scalar matrices:
+
+```math
 A_{\mathcal{S}}
 =
 \left(\sqrt{\|S_j S_k^*\|_2}\right)_{j,k=1}^r,
@@ -31,51 +53,51 @@ A_{\mathcal{S}}
 B_{\mathcal{S}}
 =
 \left(\sqrt{\|S_j^* S_k\|_2}\right)_{j,k=1}^r.
-$$
+```
 
 Here:
 
-- $\|\cdot\|_2$ is the induced matrix $2$-norm, also called the spectral norm.
-- $S_k^*$ denotes transpose in the real case and conjugate transpose in the complex case.
-- The indices $j,k$ index the selected operators, not the coordinates of the Hilbert space.
+- `|| . ||_2` is the induced matrix 2-norm, also called the spectral norm.
+- `S_k^*` denotes transpose in the real case and conjugate transpose in the complex case.
+- The indices `j,k` index the selected operators, not the coordinates of the Hilbert space.
 
-The improved Cotlar-Stein lemma gives
+The improved Cotlar-Stein lemma gives:
 
-$$
+```math
 \left\|\sum_{j=1}^r S_j\right\|_2^2
 \le
 \|A_{\mathcal{S}}\|_2\,\|B_{\mathcal{S}}\|_2.
-$$
+```
 
-In these experiments, we usually impose a common admissibility threshold
+In these experiments, we usually impose a common admissibility threshold:
 
-$$
-\alpha(K,N,c)=\beta(K,N,c),
-$$
+```math
+\alpha(K,N,c)=\beta(K,N,c).
+```
 
-and accept a candidate operator only if the enlarged family satisfies
+A candidate operator is accepted only if the enlarged family satisfies:
 
-$$
+```math
 \|A_{\mathcal{S}}\|_2 \le \alpha(K,N,c),
 \qquad
 \|B_{\mathcal{S}}\|_2 \le \alpha(K,N,c).
-$$
+```
 
-When $\alpha=\beta$, Cotlar-Stein gives the deterministic bound
+When `alpha = beta`, the Cotlar-Stein lemma gives the deterministic bound:
 
-$$
+```math
 \left\|\sum_{S\in\mathcal{S}} S\right\|_2
 \le
 \alpha(K,N,c).
-$$
+```
 
 Thus, one of the main numerical questions is how large the observed quantity
 
-$$
+```math
 \left\|\sum_{S\in\mathcal{S}} S\right\|_2
-$$
+```
 
-is relative to the allowed Cotlar-Stein scale $\alpha(K,N,c)$.
+is relative to the allowed Cotlar-Stein scale `alpha(K,N,c)`.
 
 ---
 
@@ -85,47 +107,53 @@ The project implements two greedy selection procedures.
 
 ### Version 1: finite sampling budget
 
-Given $K$, draw exactly $K$ candidate operators.
+Given `K`, draw exactly `K` candidate operators.
 
 Each candidate is accepted only if appending it to the current selected family keeps both Cotlar-Stein matrices admissible:
 
-$$
+```math
 \|A_{\mathcal{S}}\|_2 \le \alpha(K,N,c),
 \qquad
 \|B_{\mathcal{S}}\|_2 \le \alpha(K,N,c).
-$$
+```
 
-The final accepted family satisfies
+The final accepted family satisfies:
 
-$$
+```math
 |\mathcal{S}| \le K.
-$$
+```
 
 Important quantities include:
 
-- `accepted_count`: the number of accepted operators,
-- `sum_norm`: $\left\|\sum_{S\in\mathcal{S}} S\right\|_2$,
-- `A_norm`: $\|A_{\mathcal{S}}\|_2$,
-- `B_norm`: $\|B_{\mathcal{S}}\|_2$.
+- `accepted_count`: the number of accepted operators.
+- `sum_norm`: the observed norm of the accepted operator sum.
+- `A_norm`: the observed value of `||A_S||_2`.
+- `B_norm`: the observed value of `||B_S||_2`.
 
-### Version 2: sample until $K$ operators are accepted
+In formula form, `sum_norm` is:
 
-Given $K$, keep drawing candidates until $K$ operators are accepted, or until a safety cutoff `max_draws` is reached.
+```math
+\left\|\sum_{S\in\mathcal{S}} S\right\|_2.
+```
+
+### Version 2: sample until `K` operators are accepted
+
+Given `K`, keep drawing candidates until `K` operators are accepted, or until a safety cutoff `max_draws` is reached.
 
 The final accepted family satisfies
 
-$$
+```math
 |\mathcal{S}|=K
-$$
+```
 
 if the process terminates successfully.
 
 Important quantities include:
 
-- `draws`: the number of candidate draws used,
-- `terminated`: whether the process reached $K$ accepted operators before `max_draws`,
-- `sum_norm`,
-- `A_norm`,
+- `draws`: the number of candidate draws used.
+- `terminated`: whether the process reached `K` accepted operators before `max_draws`.
+- `sum_norm`.
+- `A_norm`.
 - `B_norm`.
 
 Version 2 can be much slower than Version 1 when the threshold is strict, because the algorithm may reject many candidate operators.
@@ -134,81 +162,81 @@ Version 2 can be much slower than Version 1 when the threshold is strict, becaus
 
 ## Why these alpha functions?
 
-The threshold $\alpha(K,N,c)$ controls how much interaction among accepted operators is allowed.
+The threshold `alpha(K,N,c)` controls how much interaction among accepted operators is allowed.
 
 The project currently includes three threshold choices.
 
 ### 1. Linear threshold
 
-$$
+```math
 \alpha(K,N,c)=1+c(K-1).
-$$
+```
 
 This is the main baseline.
 
 Reasoning:
 
-- For a single operator with norm near $1$, the diagonal entries of $A_{\mathcal{S}}$ and $B_{\mathcal{S}}$ are near $1$.
-- If many off-diagonal interactions are also of constant size, then the matrix norms can grow roughly linearly in $K$.
+- For a single operator with norm near 1, the diagonal entries of `A_S` and `B_S` are near 1.
+- If many off-diagonal interactions are also of constant size, then the matrix norms can grow roughly linearly in `K`.
 - Therefore, a linear threshold is a natural permissive baseline for dense random contractions.
 
 Special cases:
 
-- If $c=1$, then
+If `c = 1`, then:
 
-  $$
-  \alpha(K,N,1)=K.
-  $$
+```math
+\alpha(K,N,1)=K.
+```
 
-  This is permissive and often accepts many operators. The resulting Cotlar-Stein bound is on the same scale as the trivial triangle inequality:
+This is permissive and often accepts many operators. The resulting Cotlar-Stein bound is on the same scale as the trivial triangle inequality:
 
-  $$
-  \left\|\sum_{j=1}^K S_j\right\|_2 \le K.
-  $$
+```math
+\left\|\sum_{j=1}^K S_j\right\|_2 \le K.
+```
 
-- If $0<c<1$, the threshold is more selective. It asks the greedy procedure to find families with less accumulated interaction than the fully permissive $K$-scale.
+If `0 < c < 1`, the threshold is more selective. It asks the greedy procedure to find families with less accumulated interaction than the fully permissive `K`-scale.
 
 This is the best first threshold to test.
 
 ### 2. Square-root threshold
 
-$$
+```math
 \alpha(K,N,c)=1+c(\sqrt{K}-1).
-$$
+```
 
 This is a stricter, sublinear threshold.
 
 Reasoning:
 
 - The linear threshold tests whether the family behaves like a generic collection of dense contractions.
-- The square-root threshold asks whether the greedy selection rule can find families whose accumulated interactions grow much more slowly than $K$.
+- The square-root threshold asks whether the greedy selection rule can find families whose accumulated interactions grow much more slowly than `K`.
 - This is more mathematically interesting because the resulting Cotlar-Stein bound is sublinear:
 
-  $$
-  \left\|\sum_{S\in\mathcal{S}} S\right\|_2
-  \le
-  1+c(\sqrt{K}-1).
-  $$
+```math
+\left\|\sum_{S\in\mathcal{S}} S\right\|_2
+\le
+1+c(\sqrt{K}-1).
+```
 
-The subtraction of $1$ is intentional: it gives
+The subtraction of 1 is intentional. It gives:
 
-$$
+```math
 \alpha(1,N,c)=1,
-$$
+```
 
 which matches the natural scale for a single norm-one operator.
 
 ### 3. Constant threshold
 
-$$
+```math
 \alpha(K,N,c)=c.
-$$
+```
 
-This is the strongest type of threshold when $c$ is fixed independently of $K$.
+This is the strongest type of threshold when `c` is fixed independently of `K`.
 
 Reasoning:
 
-- A constant threshold asks for genuinely almost-orthogonal families whose sum remains uniformly bounded as $K$ grows.
+- A constant threshold asks for genuinely almost-orthogonal families whose sum remains uniformly bounded as `K` grows.
 - This can be hard for dense random operators.
 - In Version 2, this may lead to very long runtimes or nontermination before `max_draws`.
 
@@ -220,7 +248,7 @@ This threshold is useful for stress tests and for studying strict almost-orthogo
 
 The improved Cotlar-Stein lemma involves two matrices:
 
-$$
+```math
 A_{\mathcal{S}}
 =
 \left(\sqrt{\|S_jS_k^*\|_2}\right),
@@ -228,33 +256,33 @@ A_{\mathcal{S}}
 B_{\mathcal{S}}
 =
 \left(\sqrt{\|S_j^*S_k\|_2}\right).
-$$
+```
 
-In principle, one could use two different thresholds,
+In principle, one could use two different thresholds:
 
-$$
+```math
 \alpha(K,N,c),
 \qquad
 \beta(K,N,c).
-$$
+```
 
-This project currently uses $\alpha=\beta$ for simplicity. This is natural when the random matrix model treats the domain and range symmetrically. It also makes the Cotlar-Stein bound especially simple:
+This project currently uses `alpha = beta` for simplicity. This is natural when the random matrix model treats the domain and range symmetrically. It also makes the Cotlar-Stein bound especially simple:
 
-$$
+```math
 \left\|\sum_{S\in\mathcal{S}} S\right\|_2
 \le
 \alpha.
-$$
+```
 
 ---
 
 ## Samplers
 
-The project samples random matrices satisfying
+The project samples random matrices satisfying:
 
-$$
+```math
 \|T\|_2 \le 1.
-$$
+```
 
 Two samplers are implemented.
 
@@ -262,7 +290,7 @@ Two samplers are implemented.
 
 This is the fast default sampler.
 
-It samples a Gaussian random matrix and rescales it so that its spectral norm is at most $1$.
+It samples a Gaussian random matrix and rescales it so that its spectral norm is at most 1.
 
 This sampler is useful for fast experiments, but it is **not uniform** from the spectral-norm unit ball.
 
@@ -272,11 +300,11 @@ Use this sampler for most exploratory runs.
 
 This is an exact rejection sampler.
 
-It samples uniformly from a containing Frobenius norm ball and rejects candidates whose spectral norm exceeds $1$.
+It samples uniformly from a containing Frobenius norm ball and rejects candidates whose spectral norm exceeds 1.
 
-This is exact with respect to Lebesgue measure on the spectral-norm unit ball, but it becomes slow as $N$ grows.
+This is exact with respect to Lebesgue measure on the spectral-norm unit ball, but it becomes slow as `N` grows.
 
-Use this sampler only for small dimensions, such as $N=2,3,4$.
+Use this sampler only for small dimensions, such as `N = 2, 3, 4`.
 
 ---
 
@@ -311,7 +339,7 @@ cotlar-stein-experiments/
 
 - `src/config.py`: threshold functions and default parameter values.
 - `src/sampling.py`: random matrix samplers.
-- `src/cotlar.py`: construction of $A_{\mathcal{S}}$, $B_{\mathcal{S}}$, and related norms.
+- `src/cotlar.py`: construction of the Cotlar-Stein matrices and related norms.
 - `src/greedy.py`: Version 1 and Version 2 greedy selection algorithms.
 - `src/run_experiments.py`: Monte Carlo experiment runner.
 - `src/plots.py`: plotting utilities.
@@ -412,15 +440,15 @@ For example:
 N_values=[5]
 ```
 
-means matrices are $5\times 5$.
+means matrices are `5 x 5`.
 
 ### `K_values`
 
-Values of $K$ to test.
+Values of `K` to test.
 
-In Version 1, $K$ is the number of candidate draws.
+In Version 1, `K` is the number of candidate draws.
 
-In Version 2, $K$ is the target number of accepted operators.
+In Version 2, `K` is the target number of accepted operators.
 
 For example:
 
@@ -428,27 +456,27 @@ For example:
 K_values=list(range(2, 21))
 ```
 
-tests
+tests:
 
-$$
+```math
 K=2,3,\ldots,20.
-$$
+```
 
 ### `c_values`
 
-Values of the threshold parameter $c$.
+Values of the threshold parameter `c`.
 
-For example, with the linear threshold,
+For example, with the linear threshold:
 
-$$
+```math
 \alpha(K,N,c)=1+c(K-1).
-$$
+```
 
 Thus:
 
-- `c=1.0` gives $\alpha=K$,
-- `c=0.5` gives $\alpha=1+0.5(K-1)$,
-- smaller `c` means a stricter admissibility condition.
+- `c=1.0` gives `alpha = K`.
+- `c=0.5` gives `alpha = 1 + 0.5(K-1)`.
+- Smaller `c` means a stricter admissibility condition.
 
 ### `trials`
 
@@ -518,7 +546,7 @@ complex
 
 Safety cutoff for Version 2.
 
-If the algorithm does not accept $K$ operators within `max_draws` candidate draws, the run stops and records:
+If the algorithm does not accept `K` operators within `max_draws` candidate draws, the run stops and records:
 
 ```text
 terminated = False
@@ -553,12 +581,12 @@ Important meanings:
 
 - `accepted_count`: number of accepted operators.
 - `draws`: total number of candidate draws used.
-- `terminated`: whether Version 2 successfully accepted $K$ operators before `max_draws`.
-- `sum_norm`: observed value of $\left\|\sum S_j\right\|_2$.
-- `A_norm`: observed value of $\|A_{\mathcal{S}}\|_2$.
-- `B_norm`: observed value of $\|B_{\mathcal{S}}\|_2$.
+- `terminated`: whether Version 2 successfully accepted `K` operators before `max_draws`.
+- `sum_norm`: observed norm of the accepted operator sum.
+- `A_norm`: observed norm of the matrix `A_S`.
+- `B_norm`: observed norm of the matrix `B_S`.
 - `alpha`: threshold used in the admissibility test.
-- `cotlar_bound`: equal to `alpha` when $\alpha=\beta$.
+- `cotlar_bound`: equal to `alpha` when `alpha = beta`.
 
 The summary CSV groups by:
 
@@ -607,14 +635,14 @@ figures/
 
 The ratio plot
 
-$$
+```math
 \frac{\left\|\sum S_j\right\|_2}{\alpha}
-$$
+```
 
 is useful because it shows how close the observed sum norm is to the Cotlar-Stein upper bound.
 
-- Values near $1$ indicate the bound is relatively tight.
-- Values much smaller than $1$ indicate the bound is loose for that experiment.
+- Values near 1 indicate the bound is relatively tight.
+- Values much smaller than 1 indicate the bound is loose for that experiment.
 
 ---
 
@@ -646,11 +674,11 @@ These scripts do not remove `.venv/`.
 
 To add a new threshold function, edit `src/config.py`.
 
-For example, to add a logarithmic threshold,
+For example, to add a logarithmic threshold:
 
-$$
+```math
 \alpha(K,N,c)=1+c\log K,
-$$
+```
 
 add:
 
@@ -662,7 +690,7 @@ and define:
 
 ```python
 def alpha_log(K: int, N: int, c: float) -> float:
-    """Logarithmic threshold alpha(K, N, c) = 1 + c log(K)."""
+    \"\"\"Logarithmic threshold alpha(K, N, c) = 1 + c log(K).\"\"\"
     validate_parameters(K, N, c)
     return 1.0 + c * log(K)
 ```
@@ -721,7 +749,7 @@ or compare threshold regimes:
 alpha_names=["linear", "sqrt"]
 ```
 
-For Version 2, be careful with strict thresholds. If $c$ is too small or the threshold is constant, the process may take many draws to accept $K$ operators. Increase `max_draws` only after confirming that the experiment is reasonable.
+For Version 2, be careful with strict thresholds. If `c` is too small or the threshold is constant, the process may take many draws to accept `K` operators. Increase `max_draws` only after confirming that the experiment is reasonable.
 
 ---
 
@@ -731,14 +759,14 @@ The current experiments are exploratory.
 
 The `scaled_gaussian` sampler is fast and convenient, but it is not uniform from the spectral-norm ball. Therefore, results from this sampler should be interpreted as behavior for a natural random contraction model, not as exact uniform sampling from the spectral-norm ball.
 
-The `rejection` sampler is closer to the stated uniform model, but it is practical only for small $N$.
+The `rejection` sampler is closer to the stated uniform model, but it is practical only for small `N`.
 
 The most useful comparisons are often:
 
-1. Version 1 accepted count versus $K$.
-2. Version 2 draws versus $K$.
-3. Sum norm versus $K$.
-4. Ratio $\left\|\sum S_j\right\|_2/\alpha$ versus $K$.
+1. Version 1 accepted count versus `K`.
+2. Version 2 draws versus `K`.
+3. Sum norm versus `K`.
+4. Ratio of observed sum norm to `alpha` versus `K`.
 5. Linear threshold versus square-root threshold.
 6. Real versus complex fields.
 
