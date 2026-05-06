@@ -19,7 +19,7 @@ def test_run_experiment_grid_returns_expected_columns() -> None:
         trials=2,
         versions=[1],
         alpha_names=["linear"],
-        sampler_names=["scaled_gaussian"],
+        sampler_name="scaled_gaussian",
         field_values=["real"],
         random_seed=123,
     )
@@ -58,7 +58,7 @@ def test_version1_accepted_count_is_at_most_k() -> None:
         trials=3,
         versions=[1],
         alpha_names=["linear"],
-        sampler_names=["scaled_gaussian"],
+        sampler_name="scaled_gaussian",
         field_values=["complex"],
         random_seed=123,
     )
@@ -76,7 +76,7 @@ def test_version2_accepted_count_equals_k_when_terminated() -> None:
         trials=3,
         versions=[2],
         alpha_names=["linear"],
-        sampler_names=["scaled_gaussian"],
+        sampler_name="scaled_gaussian",
         field_values=["real"],
         max_draws=1_000,
         random_seed=123,
@@ -97,7 +97,7 @@ def test_summarize_results_returns_grouped_statistics() -> None:
         trials=2,
         versions=[1],
         alpha_names=["linear"],
-        sampler_names=["scaled_gaussian"],
+        sampler_name="scaled_gaussian",
         field_values=["real"],
         random_seed=123,
     )
@@ -142,7 +142,7 @@ def test_save_results_creates_csv_files(tmp_path) -> None:
 
 def test_invalid_sampler_name_raises_value_error() -> None:
     config = ExperimentConfig(
-        sampler_names=["not-a-sampler"],
+        sampler_name="not-a-sampler",
     )
 
     with pytest.raises(ValueError, match="Unknown sampler"):

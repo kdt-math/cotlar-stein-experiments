@@ -49,9 +49,7 @@ class ExperimentConfig:
     trials: int = 100
     versions: list[Version] = dataclass_field(default_factory=lambda: [1])
     alpha_names: list[str] = dataclass_field(default_factory=lambda: ["linear"])
-    sampler_names: list[str] = dataclass_field(
-        default_factory=lambda: ["scaled_gaussian"],
-    )
+    sampler_name: str = "scaled_gaussian"
     field_values: list[Field] = dataclass_field(default_factory=lambda: ["complex"])
     max_draws: int = 100_000
     random_seed: int = 123
@@ -71,11 +69,10 @@ def validate_config(config: ExperimentConfig) -> None:
             msg = f"version must be 1 or 2, got {version}."
             raise ValueError(msg)
 
-    for sampler_name in config.sampler_names:
-        if sampler_name not in SAMPLERS:
-            available = ", ".join(sorted(SAMPLERS))
-            msg = f"Unknown sampler {sampler_name!r}. Options: {available}."
-            raise ValueError(msg)
+    if config.sampler_name not in SAMPLERS:
+        available = ", ".join(sorted(SAMPLERS))
+        msg = f"Unknown sampler {config.sampler_name!r}. Options: {available}."
+        raise ValueError(msg)
 
     for field_name in config.field_values:
         if field_name not in {"real", "complex"}:
@@ -125,28 +122,26 @@ def run_single_trial(
 def parameter_grid(config: ExperimentConfig) -> Iterable[dict[str, Any]]:
     """Yield parameter combinations from an experiment configuration."""
     for version in config.versions:
-        for sampler_name in config.sampler_names:
-            for alpha_name in config.alpha_names:
-                for field_name in config.field_values:
-                    for N in config.N_values:
-                        for K in config.K_values:
-                            for c in config.c_values:
-                                yield {
-                                    "version": version,
-                                    "sampler_name": sampler_name,
-                                    "alpha_name": alpha_name,
-                                    "field": field_name,
-                                    "N": N,
-                                    "K": K,
-                                    "c": c,
-                                }
+        for alpha_name in config.alpha_names:
+            for field_name in config.field_values:
+                for N in config.N_values:
+                    for K in config.K_values:
+                        for c in config.c_values:
+                            yield {
+                                "version": version,
+                                "sampler_name": config.sampler_name,
+                                "alpha_name": alpha_name,
+                                "field": field_name,
+                                "N": N,
+                                "K": K,
+                                "c": c,
+                            }
 
 
 def count_parameter_combinations(config: ExperimentConfig) -> int:
     """Count parameter combinations, excluding Monte Carlo trials."""
     return (
         len(config.versions)
-        * len(config.sampler_names)
         * len(config.alpha_names)
         * len(config.field_values)
         * len(config.N_values)
@@ -166,7 +161,7 @@ def print_config_summary(config: ExperimentConfig) -> None:
     print(f"  c values: {config.c_values}")
     print(f"  versions: {config.versions}")
     print(f"  alpha functions: {config.alpha_names}")
-    print(f"  samplers: {config.sampler_names}")
+    print(f"  sampler: {config.sampler_name}")
     print(f"  fields: {config.field_values}")
     print(f"  trials per parameter combination: {config.trials}")
     print(f"  parameter combinations: {combinations}")
@@ -314,7 +309,7 @@ def main() -> None:
         trials=20,
         versions=[1, 2],
         alpha_names=["linear"],
-        sampler_names=["scaled_gaussian"],
+        sampler_name="scaled_gaussian",
         field_values=["real", "complex"],
         max_draws=1_000,
         random_seed=123,
