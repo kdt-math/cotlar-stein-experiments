@@ -20,6 +20,7 @@ from src.config import (
 )
 from src.greedy import Sampler, run_version1, run_version2
 from src.sampling import (
+    Field,
     sample_spectral_ball_rejection,
     sample_spectral_ball_scaled_gaussian,
 )
@@ -51,7 +52,7 @@ class ExperimentConfig:
     sampler_names: list[str] = dataclass_field(
         default_factory=lambda: ["scaled_gaussian"],
     )
-    field_values: list[str] = dataclass_field(default_factory=lambda: ["complex"])
+    field_values: list[Field] = dataclass_field(default_factory=lambda: ["complex"])
     max_draws: int = 100_000
     random_seed: int = 123
 
@@ -73,7 +74,7 @@ def validate_config(config: ExperimentConfig) -> None:
     for sampler_name in config.sampler_names:
         if sampler_name not in SAMPLERS:
             available = ", ".join(sorted(SAMPLERS))
-            msg = f"Unknown sampler {sampler_name!r}. Available options: {available}."
+            msg = f"Unknown sampler {sampler_name!r}. Options: {available}."
             raise ValueError(msg)
 
     for field_name in config.field_values:
@@ -93,7 +94,7 @@ def run_single_trial(
     c: float,
     alpha_func: AlphaFunction,
     sampler: Sampler,
-    field_name: str,
+    field_name: Field,
     rng: np.random.Generator,
     max_draws: int,
 ) -> dict[str, Any]:
@@ -105,7 +106,7 @@ def run_single_trial(
             alpha_func=alpha_func,
             c=c,
             sampler=sampler,
-            field=field_name,  # type: ignore[arg-type]
+            field=field_name,
             rng=rng,
         )
 
@@ -115,7 +116,7 @@ def run_single_trial(
         alpha_func=alpha_func,
         c=c,
         sampler=sampler,
-        field=field_name,  # type: ignore[arg-type]
+        field=field_name,
         rng=rng,
         max_draws=max_draws,
     )
@@ -139,6 +140,48 @@ def parameter_grid(config: ExperimentConfig) -> Iterable[dict[str, Any]]:
                                     "K": K,
                                     "c": c,
                                 }
+
+
+def count_parameter_combinations(config: ExperimentConfig) -> int:
+    """Count parameter combinations, excluding Monte Carlo trials."""
+    return (
+        len(config.versions)
+        * len(config.sampler_names)
+        * len(config.alpha_names)
+        * len(config.field_values)
+        * len(config.N_values)
+        * len(config.K_values)
+        * len(config.c_values)
+    )
+
+
+def print_config_summary(config: ExperimentConfig) -> None:
+    """Print a short summary of the experiment configuration."""
+    combinations = count_parameter_combinations(config)
+    total_runs = combinations * config.trials
+
+    print("Experiment configuration:")
+    print(f"  N values: {config.N_values}")
+    print(f"  K values: {config.K_values}")
+    print(f"  c values: {config.c_values}")
+    print(f"  versions: {config.versions}")
+    print(f"  alpha functions: {config.alpha_names}")
+    print(f"  samplers: {config.sampler_names}")
+    print(f"  fields: {config.field_values}")
+    print(f"  trials per parameter combination: {config.trials}")
+    print(f"  parameter combinations: {combinations}")
+    print(f"  total Monte Carlo runs: {total_runs}")
+    print(f"  max_draws for Version 2: {config.max_draws}")
+
+
+def confirm_run(config: ExperimentConfig) -> None:
+    """Ask for confirmation before running an experiment."""
+    print_config_summary(config)
+    answer = input("Type 'yes' to start this experiment: ").strip().lower()
+
+    if answer != "yes":
+        msg = "Aborted before running experiments."
+        raise SystemExit(msg)
 
 
 def run_experiment_grid(config: ExperimentConfig) -> pd.DataFrame:
@@ -200,11 +243,44 @@ def summarize_results(results: pd.DataFrame) -> pd.DataFrame:
         "cotlar_bound",
     ]
 
-    summary = results.groupby(group_cols, dropna=False)[value_cols].agg(["mean", "std"])
+    summary = results.groupby(group_cols, dropna=False)[value_cols].agg(
+        ["mean", "std"],
+    )
     summary.columns = [f"{col}_{stat}" for col, stat in summary.columns]
-    summary = summary.reset_index()
+    return summary.reset_index()
 
-    return summary
+
+def result_paths(
+    output_dir: str | Path = "results",
+    prefix: str = "cotlar",
+) -> tuple[Path, Path]:
+    """Return raw and summary CSV paths."""
+    output_path = Path(output_dir)
+    raw_path = output_path / f"{prefix}_raw_results.csv"
+    summary_path = output_path / f"{prefix}_summary_results.csv"
+    return raw_path, summary_path
+
+
+def confirm_overwrite(
+    output_dir: str | Path = "results",
+    prefix: str = "cotlar",
+) -> None:
+    """Ask for confirmation before overwriting existing result files."""
+    raw_path, summary_path = result_paths(output_dir=output_dir, prefix=prefix)
+    existing_paths = [path for path in [raw_path, summary_path] if path.exists()]
+
+    if not existing_paths:
+        return
+
+    print("Warning: existing result files were found:")
+    for path in existing_paths:
+        print(f"  {path}")
+
+    answer = input("Type 'yes' to overwrite these files: ").strip().lower()
+
+    if answer != "yes":
+        msg = "Aborted without overwriting existing results."
+        raise SystemExit(msg)
 
 
 def save_results(
@@ -216,9 +292,7 @@ def save_results(
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
-    raw_path = output_path / f"{prefix}_raw_results.csv"
-    summary_path = output_path / f"{prefix}_summary_results.csv"
-
+    raw_path, summary_path = result_paths(output_dir=output_path, prefix=prefix)
     summary = summarize_results(results)
 
     results.to_csv(raw_path, index=False)
@@ -228,51 +302,41 @@ def save_results(
 
 
 def main() -> None:
+    """Run the experiment configured below."""
+
+    # ============================================================
+    # Edit this block for the experiment you want to run.
+    # ============================================================
     config = ExperimentConfig(
-        # Dimension of the Hilbert space H = R^N or C^N.
         N_values=[5],
-
-        # K is the number of candidate draws in Version 1,
-        # and the target number of accepted operators in Version 2.
         K_values=list(range(2, 21)),
-
-        # Threshold parameter.
-        # With alpha_linear and c=1, alpha(K,N,c)=K.
         c_values=[1.0],
-
-        # Monte Carlo repetitions for each parameter combination.
         trials=20,
-
-        # Version 1: draw exactly K candidates.
-        # Version 2: keep drawing until K operators are accepted.
         versions=[1, 2],
-
-        # Available alpha choices currently: "linear", "sqrt", "constant".
-        # "linear": alpha = 1 + c(K - 1)
-        # "sqrt": alpha = 1 + c(sqrt(K) - 1)
-        # "constant": alpha = c
         alpha_names=["linear"],
-
-        # Available samplers currently: "scaled_gaussian", "rejection".
-        # "scaled_gaussian" is fast but not uniform from the spectral norm ball.
-        # "rejection" is exact but slow, especially as N grows.
         sampler_names=["scaled_gaussian"],
-
-        # Available fields: "real", "complex".
-        field_values=["real"],
-
-        # Safety cutoff for Version 2.
-        max_draws=10_000,
-
-        # Seed for reproducibility.
+        field_values=["real", "complex"],
+        max_draws=1_000,
         random_seed=123,
     )
 
+    output_dir = "results"
+    prefix = "cotlar"
+    # ============================================================
+
+    confirm_run(config)
+    confirm_overwrite(output_dir=output_dir, prefix=prefix)
+
     results = run_experiment_grid(config)
-    raw_path, summary_path = save_results(results)
+    raw_path, summary_path = save_results(
+        results,
+        output_dir=output_dir,
+        prefix=prefix,
+    )
 
     print(f"Saved raw results to {raw_path}")
     print(f"Saved summary results to {summary_path}")
+
 
 if __name__ == "__main__":
     main()
