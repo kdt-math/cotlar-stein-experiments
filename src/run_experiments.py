@@ -228,17 +228,43 @@ def save_results(
 
 
 def main() -> None:
-    """Run a tiny default experiment."""
     config = ExperimentConfig(
-        N_values=[2],
-        K_values=[2, 3],
+        # Dimension of the Hilbert space H = R^N or C^N.
+        N_values=[5],
+
+        # K is the number of candidate draws in Version 1,
+        # and the target number of accepted operators in Version 2.
+        K_values=list(range(2, 21)),
+
+        # Threshold parameter.
+        # With alpha_linear and c=1, alpha(K,N,c)=K.
         c_values=[1.0],
-        trials=3,
+
+        # Monte Carlo repetitions for each parameter combination.
+        trials=20,
+
+        # Version 1: draw exactly K candidates.
+        # Version 2: keep drawing until K operators are accepted.
         versions=[1, 2],
+
+        # Available alpha choices currently: "linear", "sqrt", "constant".
+        # "linear": alpha = 1 + c(K - 1)
+        # "sqrt": alpha = 1 + c(sqrt(K) - 1)
+        # "constant": alpha = c
         alpha_names=["linear"],
+
+        # Available samplers currently: "scaled_gaussian", "rejection".
+        # "scaled_gaussian" is fast but not uniform from the spectral norm ball.
+        # "rejection" is exact but slow, especially as N grows.
         sampler_names=["scaled_gaussian"],
+
+        # Available fields: "real", "complex".
         field_values=["real"],
-        max_draws=1_000,
+
+        # Safety cutoff for Version 2.
+        max_draws=10_000,
+
+        # Seed for reproducibility.
         random_seed=123,
     )
 

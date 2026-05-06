@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
 
@@ -11,36 +12,42 @@ def load_results(path: str | Path = "results/cotlar_raw_results.csv") -> pd.Data
     return pd.read_csv(path)
 
 
-def filter_results(
-    results: pd.DataFrame,
-    *,
-    version: int | None = None,
-    sampler_name: str | None = None,
-    alpha_name: str | None = None,
-    field: str | None = None,
-    N: int | None = None,
-    c: float | None = None,
-) -> pd.DataFrame:
-    """Filter results by common experiment parameters."""
-    filtered = results.copy()
+def format_c_value(c: float) -> str:
+    """Format a c value for folder names.
 
-    if version is not None:
-        filtered = filtered[filtered["version"] == version]
-    if sampler_name is not None:
-        filtered = filtered[filtered["sampler_name"] == sampler_name]
-    if alpha_name is not None:
-        filtered = filtered[filtered["alpha_name"] == alpha_name]
-    if field is not None:
-        filtered = filtered[filtered["field"] == field]
-    if N is not None:
-        filtered = filtered[filtered["N"] == N]
-    if c is not None:
-        filtered = filtered[filtered["c"] == c]
-
-    return filtered
+    Example:
+        1.0 -> c_1p0
+        0.5 -> c_0p5
+    """
+    return f"c_{str(c).replace('.', 'p')}"
 
 
-def plot_mean_metric_vs_k(
+def format_n_value(N: int) -> str:
+    """Format an N value for folder names."""
+    return f"N_{N}"
+
+
+def add_ratio_column(results: pd.DataFrame) -> pd.DataFrame:
+    """Return a copy with the ratio sum_norm / alpha added.
+
+    If alpha is zero, the ratio is set to NaN.
+    """
+    copied = results.copy()
+    copied["sum_norm_over_alpha"] = np.where(
+        copied["alpha"] != 0,
+        copied["sum_norm"] / copied["alpha"],
+        np.nan,
+    )
+    return copied
+
+
+def mean_by_k(results: pd.DataFrame, metric: str) -> pd.DataFrame:
+    """Compute the mean of a metric grouped by K."""
+    grouped = results.groupby("K", as_index=False)[metric].mean()
+    return grouped.sort_values("K").dropna(subset=[metric])
+
+
+def plot_single_curve_vs_k(
     results: pd.DataFrame,
     metric: str,
     *,
@@ -48,8 +55,13 @@ def plot_mean_metric_vs_k(
     ylabel: str,
     output_path: str | Path,
 ) -> None:
-    """Plot the mean of a metric versus K."""
-    grouped = results.groupby("K", as_index=False)[metric].mean()
+    """Plot one mean curve versus K."""
+    if results.empty:
+        return
+
+    grouped = mean_by_k(results, metric)
+    if grouped.empty:
+        return
 
     fig, ax = plt.subplots()
     ax.plot(grouped["K"], grouped[metric], marker="o")
@@ -64,63 +76,155 @@ def plot_mean_metric_vs_k(
     plt.close(fig)
 
 
-def add_ratio_column(results: pd.DataFrame) -> pd.DataFrame:
-    """Return a copy with the ratio sum_norm / alpha added."""
-    copied = results.copy()
-    copied["sum_norm_over_alpha"] = copied["sum_norm"] / copied["alpha"]
-    return copied
+def plot_version_curves_vs_k(
+    results: pd.DataFrame,
+    metric: str,
+    *,
+    title: str,
+    ylabel: str,
+    output_path: str | Path,
+) -> None:
+    """Plot mean curves versus K, one curve for each version."""
+    if results.empty:
+        return
+
+    fig, ax = plt.subplots()
+    plotted_any_curve = False
+
+    for version, version_results in results.groupby("version"):
+        grouped = mean_by_k(version_results, metric)
+        if grouped.empty:
+            continue
+
+        ax.plot(
+            grouped["K"],
+            grouped[metric],
+            marker="o",
+            label=f"Version {version}",
+        )
+        plotted_any_curve = True
+
+    if not plotted_any_curve:
+        plt.close(fig)
+        return
+
+    ax.set_xlabel("K")
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+    ax.grid(True)
+    ax.legend()
+
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, bbox_inches="tight")
+    plt.close(fig)
 
 
-def make_default_plots(
-    results_path: str | Path = "results/cotlar_raw_results.csv",
+def plot_slice(
+    results: pd.DataFrame,
+    *,
+    field: str,
+    alpha_name: str,
+    N: int,
+    c: float,
     output_dir: str | Path = "figures",
 ) -> None:
-    """Create a small collection of default plots."""
-    results = load_results(results_path)
-    output_dir = Path(output_dir)
+    """Create plots for one fixed field, alpha_name, N, and c value."""
+    sliced = results[
+        (results["field"] == field)
+        & (results["alpha_name"] == alpha_name)
+        & (results["N"] == N)
+        & (results["c"] == c)
+    ].copy()
 
-    version1 = filter_results(results, version=1)
-    version2 = filter_results(results, version=2)
+    if sliced.empty:
+        return
 
-    if not version1.empty:
-        plot_mean_metric_vs_k(
-            version1,
-            metric="accepted_count",
-            title="Version 1: Mean Accepted Count vs K",
-            ylabel="Mean accepted count",
-            output_path=output_dir / "version1_accepted_count_vs_k.png",
-        )
+    sliced = add_ratio_column(sliced)
 
-        plot_mean_metric_vs_k(
-            version1,
-            metric="sum_norm",
-            title="Version 1: Mean Sum Norm vs K",
-            ylabel="Mean ||sum S_j||",
-            output_path=output_dir / "version1_sum_norm_vs_k.png",
-        )
+    slice_dir = (
+        Path(output_dir)
+        / field
+        / alpha_name
+        / format_n_value(N)
+        / format_c_value(c)
+    )
 
-    if not version2.empty:
-        plot_mean_metric_vs_k(
-            version2,
-            metric="draws",
-            title="Version 2: Mean Draws vs K",
-            ylabel="Mean draws",
-            output_path=output_dir / "version2_draws_vs_k.png",
-        )
+    label = f"{field}, {alpha_name}, N={N}, c={c}"
 
-    ratio_results = add_ratio_column(results)
-    plot_mean_metric_vs_k(
-        ratio_results,
+    version1 = sliced[sliced["version"] == 1]
+    version2 = sliced[sliced["version"] == 2]
+
+    plot_single_curve_vs_k(
+        version1,
+        metric="accepted_count",
+        title=f"Version 1: Mean Accepted Count vs K ({label})",
+        ylabel="Mean accepted count",
+        output_path=slice_dir / "version1_accepted_count_vs_k.png",
+    )
+
+    plot_single_curve_vs_k(
+        version1,
+        metric="sum_norm",
+        title=f"Version 1: Mean Sum Norm vs K ({label})",
+        ylabel="Mean ||sum S_j||",
+        output_path=slice_dir / "version1_sum_norm_vs_k.png",
+    )
+
+    plot_single_curve_vs_k(
+        version2,
+        metric="draws",
+        title=f"Version 2: Mean Draws vs K ({label})",
+        ylabel="Mean draws",
+        output_path=slice_dir / "version2_draws_vs_k.png",
+    )
+
+    plot_single_curve_vs_k(
+        version2,
+        metric="sum_norm",
+        title=f"Version 2: Mean Sum Norm vs K ({label})",
+        ylabel="Mean ||sum S_j||",
+        output_path=slice_dir / "version2_sum_norm_vs_k.png",
+    )
+
+    plot_version_curves_vs_k(
+        sliced,
         metric="sum_norm_over_alpha",
-        title="Mean Ratio ||sum S_j|| / alpha vs K",
-        ylabel="Mean ratio",
-        output_path=output_dir / "sum_norm_over_alpha_vs_k.png",
+        title=f"Mean Ratio ||sum S_j|| / alpha vs K ({label})",
+        ylabel="Mean ||sum S_j|| / alpha",
+        output_path=slice_dir / "sum_norm_over_alpha_vs_k.png",
     )
 
 
+def make_plots_by_slice(
+    results_path: str | Path = "results/cotlar_raw_results.csv",
+    output_dir: str | Path = "figures",
+) -> None:
+    """Create plots in folders organized by field, alpha_name, N, and c."""
+    results = load_results(results_path)
+
+    required_columns = {"field", "alpha_name", "N", "c"}
+    missing_columns = required_columns - set(results.columns)
+    if missing_columns:
+        msg = f"Missing required columns: {sorted(missing_columns)}."
+        raise ValueError(msg)
+
+    slice_keys = results[["field", "alpha_name", "N", "c"]].drop_duplicates()
+
+    for row in slice_keys.itertuples(index=False):
+        plot_slice(
+            results,
+            field=row.field,
+            alpha_name=row.alpha_name,
+            N=row.N,
+            c=row.c,
+            output_dir=output_dir,
+        )
+
+
 def main() -> None:
-    """Generate default plots from the default raw results CSV."""
-    make_default_plots()
+    """Generate plots from the default raw results CSV."""
+    make_plots_by_slice()
     print("Saved plots to figures/")
 
 
