@@ -284,7 +284,7 @@ The project samples random matrices satisfying:
 \|T\|_2 \le 1.
 ```
 
-There are two implemented samplers. They have different mathematical meanings.
+There are three implemented samplers. They have different mathematical meanings.
 
 ### 1. `scaled_gaussian`: fast random contractions
 
@@ -384,18 +384,73 @@ The downside is speed. The Frobenius ball is much larger than the spectral-norm 
 
 For this reason, `rejection` is mathematically closer to exact uniform sampling, but it is practical only for small dimensions, such as `N = 2, 3, 4`.
 
+### 3. `haar_truncation`: exact complex uniform sampling from the spectral-norm ball
+
+This sampler is an exact uniform sampler for the **complex** spectral-norm unit ball:
+
+```math
+\mathbb{B}_2(\mathbb{C}^{N\times N})
+=
+\{T \in \mathbb{C}^{N\times N} : \|T\|_2 \le 1\}.
+```
+
+It uses a Haar-unitary truncation construction:
+
+1. Generate a Haar-distributed unitary matrix `U` of size `2N x 2N`.
+2. Return the upper-left `N x N` block of `U`.
+
+In formula form, if
+
+```math
+U \in \mathbb{C}^{2N\times 2N}
+```
+
+is Haar-distributed and partitioned as
+
+```math
+U =
+\begin{bmatrix}
+T & * \\
+* & *
+\end{bmatrix},
+```
+
+then the returned block `T` satisfies
+
+```math
+\|T\|_2 \le 1
+```
+
+and is uniformly distributed in the complex spectral-norm unit ball.
+
+This sampler is usually much faster than rejection sampling. It is the recommended exact sampler when `field_values=["complex"]`.
+
+Current limitation:
+
+- `haar_truncation` supports only `field="complex"`.
+- It should not be used with `field_values=["real"]`.
+
+To use it in experiments, set:
+
+```python
+sampler_name="haar_truncation"
+field_values=["complex"]
+```
+
 ### Summary of sampler choices
 
 | Sampler | Meaning | Uniform from spectral-norm ball? | Speed |
 |---|---|---:|---:|
 | `scaled_gaussian` | Fast random contraction model | No | Fast |
 | `rejection` | Exact uniform spectral-ball sampler | Yes | Slow |
+| `haar_truncation` | Exact complex uniform spectral-ball sampler | Yes, complex only | Fast |
 
 Recommended workflow:
 
-1. Use `scaled_gaussian` for most exploratory runs.
-2. Use `rejection` only for small `N`.
-3. Compare the two samplers at small dimensions to see whether the qualitative behavior changes.
+1. Use `scaled_gaussian` for fast exploratory runs.
+2. Use `haar_truncation` for exact uniform sampling in the complex case.
+3. Use `rejection` only for small `N`, especially when testing or comparing the real case.
+4. Compare samplers at small dimensions to see whether the qualitative behavior changes.
 
 ---
 
@@ -620,6 +675,13 @@ Currently available:
 ```text
 scaled_gaussian
 rejection
+haar_truncation
+```
+
+The `haar_truncation` sampler currently supports only the complex field, so use it with:
+
+```python
+field_values=["complex"]
 ```
 
 ### `field_values`
@@ -813,13 +875,20 @@ alpha_names=["linear", "sqrt", "log"]
 
 ## Practical recommendations
 
-For initial experiments, use:
+For initial exploratory experiments, use:
 
 ```python
 sampler_name="scaled_gaussian"
 ```
 
-and start with the linear threshold:
+For exact uniform complex spectral-norm-ball experiments, use:
+
+```python
+sampler_name="haar_truncation"
+field_values=["complex"]
+```
+
+Then start with the linear threshold:
 
 ```python
 alpha_names=["linear"]
@@ -850,7 +919,9 @@ The current experiments are exploratory.
 
 The `scaled_gaussian` sampler is fast and convenient, but it is not uniform from the spectral-norm ball. Therefore, results from this sampler should be interpreted as behavior for a natural random contraction model, not as exact uniform sampling from the spectral-norm ball.
 
-The `rejection` sampler is closer to the stated uniform model, but it is practical only for small `N`.
+The `haar_truncation` sampler gives exact uniform samples from the complex spectral-norm ball and is the preferred exact sampler for complex experiments.
+
+The `rejection` sampler is also exact, but it is practical only for small `N`. It remains useful for small-dimensional checks and for real-field experiments.
 
 The most useful comparisons are often:
 

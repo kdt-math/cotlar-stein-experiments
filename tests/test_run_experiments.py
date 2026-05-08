@@ -4,6 +4,7 @@ import pandas as pd
 import pytest
 
 from src.run_experiments import (
+    SAMPLERS,
     ExperimentConfig,
     run_experiment_grid,
     save_results,
@@ -138,6 +139,42 @@ def test_save_results_creates_csv_files(tmp_path) -> None:
 
     assert raw_path.exists()
     assert summary_path.exists()
+
+
+def test_haar_truncation_sampler_is_registered() -> None:
+    assert "haar_truncation" in SAMPLERS
+
+
+def test_run_experiment_grid_accepts_haar_truncation_sampler() -> None:
+    config = ExperimentConfig(
+        N_values=[2],
+        K_values=[2],
+        c_values=[1.0],
+        trials=2,
+        versions=[1],
+        alpha_names=["linear"],
+        sampler_name="haar_truncation",
+        field_values=["complex"],
+        random_seed=123,
+    )
+
+    results = run_experiment_grid(config)
+
+    assert not results.empty
+    assert len(results) == 2
+    assert (results["sampler_name"] == "haar_truncation").all()
+    assert (results["field"] == "complex").all()
+    assert (results["accepted_count"] <= results["K"]).all()
+
+
+def test_haar_truncation_sampler_rejects_real_field_in_config() -> None:
+    config = ExperimentConfig(
+        sampler_name="haar_truncation",
+        field_values=["real"],
+    )
+
+    with pytest.raises(ValueError, match="field='complex'"):
+        run_experiment_grid(config)
 
 
 def test_invalid_sampler_name_raises_value_error() -> None:

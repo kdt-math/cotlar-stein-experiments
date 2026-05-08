@@ -5,8 +5,10 @@ import pytest
 
 from src.sampling import (
     gaussian_matrix,
+    haar_unitary,
     real_dimension,
     sample_frobenius_ball,
+    sample_spectral_ball_haar_truncation,
     sample_spectral_ball_rejection,
     sample_spectral_ball_scaled_gaussian,
     spectral_norm,
@@ -88,3 +90,56 @@ def test_scaled_gaussian_is_reproducible_with_same_seed() -> None:
     T2 = sample_spectral_ball_scaled_gaussian(N=3, field="complex", rng=rng2)
 
     assert np.allclose(T1, T2)
+
+
+def test_haar_unitary_is_unitary() -> None:
+    rng = np.random.default_rng(123)
+
+    U = haar_unitary(N=5, rng=rng)
+
+    assert U.shape == (5, 5)
+    assert np.iscomplexobj(U)
+    assert np.allclose(U.conj().T @ U, np.eye(5), atol=1e-12)
+
+
+def test_sample_spectral_ball_haar_truncation_has_spectral_norm_at_most_one() -> None:
+    rng = np.random.default_rng(123)
+
+    T = sample_spectral_ball_haar_truncation(N=5, field="complex", rng=rng)
+
+    assert T.shape == (5, 5)
+    assert np.iscomplexobj(T)
+    assert spectral_norm(T) <= 1.0 + 1e-12
+
+
+def test_sample_spectral_ball_haar_truncation_respects_radius() -> None:
+    rng = np.random.default_rng(123)
+    radius = 2.5
+
+    T = sample_spectral_ball_haar_truncation(
+        N=5,
+        field="complex",
+        radius=radius,
+        rng=rng,
+    )
+
+    assert T.shape == (5, 5)
+    assert spectral_norm(T) <= radius + 1e-12
+
+
+def test_sample_spectral_ball_haar_truncation_rejects_real_field() -> None:
+    rng = np.random.default_rng(123)
+
+    with pytest.raises(ValueError, match="supports only field='complex'"):
+        sample_spectral_ball_haar_truncation(N=3, field="real", rng=rng)
+
+
+def test_sample_spectral_ball_haar_truncation_is_reproducible() -> None:
+    rng1 = np.random.default_rng(123)
+    rng2 = np.random.default_rng(123)
+
+    T1 = sample_spectral_ball_haar_truncation(N=3, field="complex", rng=rng1)
+    T2 = sample_spectral_ball_haar_truncation(N=3, field="complex", rng=rng2)
+
+    assert np.allclose(T1, T2)
+

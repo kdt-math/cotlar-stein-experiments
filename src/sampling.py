@@ -57,6 +57,33 @@ def gaussian_matrix(
     return real_part + 1j * imag_part
 
 
+
+def haar_unitary(
+    N: int,
+    rng: np.random.Generator | None = None,
+) -> NDArray[np.complex128]:
+    """Sample a Haar-distributed unitary N by N matrix.
+
+    The construction uses the standard complex-Gaussian QR method. The phase
+    correction makes the distribution invariant under unitary multiplication.
+    """
+    validate_dimension(N)
+
+    if rng is None:
+        rng = np.random.default_rng()
+
+    Z = gaussian_matrix(N=N, field="complex", rng=rng)
+    Q, R = np.linalg.qr(Z)
+
+    diagonal = np.diag(R)
+    magnitudes = np.abs(diagonal)
+    phases = np.ones_like(diagonal, dtype=np.complex128)
+    nonzero = magnitudes > 0
+    phases[nonzero] = diagonal[nonzero] / magnitudes[nonzero]
+
+    return Q @ np.diag(phases)
+
+
 def sample_frobenius_ball(
     N: int,
     field: Field = "complex",
@@ -174,3 +201,35 @@ def sample_spectral_ball_scaled_gaussian(
     radial_factor = rng.random() ** (1.0 / dim)
 
     return radial_factor * T / norm_T
+
+
+def sample_spectral_ball_haar_truncation(
+    N: int,
+    field: Field = "complex",
+    radius: float = 1.0,
+    rng: np.random.Generator | None = None,
+) -> NDArray[np.complex128]:
+    """Sample uniformly from the complex spectral norm ball.
+
+    This exact sampler is for the complex case. It draws a Haar unitary matrix
+    of size 2N by 2N and returns its upper-left N by N block. This block is
+    uniformly distributed, with respect to Lebesgue measure, on the complex
+    spectral norm ball {T : ||T||_2 <= 1}. Multiplication by radius samples from
+    {T : ||T||_2 <= radius}.
+    """
+    validate_dimension(N)
+    validate_field(field)
+
+    if field != "complex":
+        msg = "haar_truncation currently supports only field='complex'."
+        raise ValueError(msg)
+    if radius <= 0:
+        msg = f"radius must be positive, got {radius}."
+        raise ValueError(msg)
+
+    if rng is None:
+        rng = np.random.default_rng()
+
+    U = haar_unitary(N=2 * N, rng=rng)
+    return radius * U[:N, :N]
+

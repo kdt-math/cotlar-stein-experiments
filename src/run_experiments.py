@@ -21,6 +21,7 @@ from src.config import (
 from src.greedy import Sampler, run_version1, run_version2
 from src.sampling import (
     Field,
+    sample_spectral_ball_haar_truncation,
     sample_spectral_ball_rejection,
     sample_spectral_ball_scaled_gaussian,
 )
@@ -30,6 +31,7 @@ Version = Literal[1, 2]
 SAMPLERS: dict[str, Sampler] = {
     "scaled_gaussian": sample_spectral_ball_scaled_gaussian,
     "rejection": sample_spectral_ball_rejection,
+    "haar_truncation": sample_spectral_ball_haar_truncation,
 }
 
 
@@ -78,6 +80,13 @@ def validate_config(config: ExperimentConfig) -> None:
         if field_name not in {"real", "complex"}:
             msg = f"field must be 'real' or 'complex', got {field_name!r}."
             raise ValueError(msg)
+
+    if (
+        config.sampler_name == "haar_truncation"
+        and any(field_name != "complex" for field_name in config.field_values)
+    ):
+        msg = "haar_truncation sampler currently supports only field='complex'."
+        raise ValueError(msg)
 
     for alpha_name in config.alpha_names:
         get_alpha_function(alpha_name)
@@ -303,15 +312,15 @@ def main() -> None:
     # Edit this block for the experiment you want to run.
     # ============================================================
     config = ExperimentConfig(
-        N_values=[4],
-        K_values=list(range(2, 21)),
+        N_values=[2],
+        K_values=list(range(2, 11)),
         c_values=[1.0],
-        trials=20,
+        trials=30,
         versions=[1, 2],
-        alpha_names=["linear", "sqrt"],
+        alpha_names=["sqrt"],
         sampler_name="rejection",
-        field_values=["real", "complex"],
-        max_draws=10_000,
+        field_values=["real"],
+        max_draws=5_000,
         random_seed=123,
     )
 
