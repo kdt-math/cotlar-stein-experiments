@@ -1,7 +1,7 @@
 """Configuration and threshold functions for Cotlar--Stein experiments."""
 
 from collections.abc import Callable
-from math import sqrt
+from math import log, sqrt
 
 AlphaFunction = Callable[[int, int, float], float]
 
@@ -40,6 +40,12 @@ def alpha_sqrt(K: int, N: int, c: float) -> float:
     return 1.0 + c * (sqrt(K) - 1)
 
 
+def alpha_log(K: int, N: int, c: float) -> float:
+    """Logarithmic threshold alpha(K, N, c) = c log(K)."""
+    validate_parameters(K, N, c)
+    return c * log(K)
+
+
 def alpha_constant(K: int, N: int, c: float) -> float:
     """Constant threshold alpha(K, N, c) = c.
 
@@ -53,6 +59,7 @@ ALPHA_FUNCTIONS: dict[str, AlphaFunction] = {
     "linear": alpha_linear,
     "sqrt": alpha_sqrt,
     "constant": alpha_constant,
+    "log": alpha_log,
 }
 
 

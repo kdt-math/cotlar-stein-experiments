@@ -1,5 +1,7 @@
 """Tests for threshold functions."""
 
+from math import log
+
 import pytest
 
 from src.config import (
@@ -12,6 +14,7 @@ from src.config import (
     DEFAULT_TRIALS,
     alpha_constant,
     alpha_linear,
+    alpha_log,
     alpha_sqrt,
     get_alpha_function,
 )
@@ -24,6 +27,8 @@ def test_alpha_linear() -> None:
 def test_alpha_sqrt() -> None:
     assert alpha_sqrt(K=4, N=3, c=2.0) == 3.0
 
+def test_alpha_log() -> None:
+    assert alpha_log(K=4, N=3, c=2.0) == 2.0 * log(4)
 
 def test_alpha_constant() -> None:
     assert alpha_constant(K=10, N=3, c=2.5) == 2.5
@@ -57,6 +62,6 @@ def test_defaults_are_nonempty() -> None:
     assert DEFAULT_K_VALUES
     assert DEFAULT_C_VALUES
     assert DEFAULT_TRIALS > 0
-    assert DEFAULT_ALPHA_NAME in {"linear", "sqrt", "constant"}
+    assert DEFAULT_ALPHA_NAME in {"linear", "sqrt", "constant", "log"}
     assert set(DEFAULT_FIELD_VALUES) == {"real", "complex"}
     assert DEFAULT_FIELD in DEFAULT_FIELD_VALUES

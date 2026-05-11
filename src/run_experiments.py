@@ -312,15 +312,15 @@ def main() -> None:
     # Edit this block for the experiment you want to run.
     # ============================================================
     config = ExperimentConfig(
-        N_values=[2],
-        K_values=list(range(2, 11)),
+        N_values=[3],
+        K_values=list(range(2, 21)),
         c_values=[1.0],
-        trials=30,
-        versions=[1, 2],
+        trials=20,
+        versions=[1],
         alpha_names=["sqrt"],
         sampler_name="rejection",
         field_values=["real"],
-        max_draws=5_000,
+        max_draws=10_000,
         random_seed=123,
     )
 

@@ -28,16 +28,26 @@ def format_n_value(N: int) -> str:
 
 
 def add_ratio_column(results: pd.DataFrame) -> pd.DataFrame:
-    """Return a copy with the ratio sum_norm / alpha added.
+    """Return a copy with derived plotting columns added.
 
-    If alpha is zero, the ratio is set to NaN.
+    Added columns:
+        sum_norm_over_alpha: sum_norm / alpha, set to NaN if alpha is zero.
+        log_sum_norm: log(sum_norm), set to NaN if sum_norm is nonpositive.
     """
     copied = results.copy()
+
     copied["sum_norm_over_alpha"] = np.where(
         copied["alpha"] != 0,
         copied["sum_norm"] / copied["alpha"],
         np.nan,
     )
+
+    copied["log_sum_norm"] = np.nan
+    positive_sum_norm = copied["sum_norm"] > 0
+    copied.loc[positive_sum_norm, "log_sum_norm"] = np.log(
+        copied.loc[positive_sum_norm, "sum_norm"],
+    )
+
     return copied
 
 
@@ -193,6 +203,14 @@ def plot_slice(
         title=f"Mean Ratio ||sum S_j|| / alpha vs K ({label})",
         ylabel="Mean ||sum S_j|| / alpha",
         output_path=slice_dir / "sum_norm_over_alpha_vs_k.png",
+    )
+
+    plot_version_curves_vs_k(
+        sliced,
+        metric="log_sum_norm",
+        title=f"Mean Log Sum Norm vs K ({label})",
+        ylabel="Mean log ||sum S_j||",
+        output_path=slice_dir / "log_sum_norm_vs_k.png",
     )
 
 
