@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from dataclasses import field as dataclass_field
 from pathlib import Path
 from typing import Any, Literal
+from tqdm import tqdm
 
 import numpy as np
 import pandas as pd
@@ -188,37 +189,52 @@ def confirm_run(config: ExperimentConfig) -> None:
         raise SystemExit(msg)
 
 
-def run_experiment_grid(config: ExperimentConfig) -> pd.DataFrame:
+def run_experiment_grid(
+    config: ExperimentConfig,
+    show_progress: bool = False,
+) -> pd.DataFrame:
     """Run a full Monte Carlo experiment grid and return raw results."""
     validate_config(config)
 
     rng = np.random.default_rng(config.random_seed)
     rows: list[dict[str, Any]] = []
 
-    for params in parameter_grid(config):
-        alpha_func = get_alpha_function(params["alpha_name"])
-        sampler = SAMPLERS[params["sampler_name"]]
+    total_runs = count_parameter_combinations(config) * config.trials
 
-        for trial in range(config.trials):
-            result = run_single_trial(
-                version=params["version"],
-                N=params["N"],
-                K=params["K"],
-                c=params["c"],
-                alpha_func=alpha_func,
-                sampler=sampler,
-                field_name=params["field"],
-                rng=rng,
-                max_draws=config.max_draws,
-            )
+    progress_bar = tqdm(
+        total=total_runs,
+        desc="Monte Carlo runs",
+        unit="run",
+        disable=not show_progress,
+    )
 
-            rows.append(
-                {
-                    **params,
-                    "trial": trial,
-                    **result,
-                }
-            )
+    with progress_bar:
+        for params in parameter_grid(config):
+            alpha_func = get_alpha_function(params["alpha_name"])
+            sampler = SAMPLERS[params["sampler_name"]]
+
+            for trial in range(config.trials):
+                result = run_single_trial(
+                    version=params["version"],
+                    N=params["N"],
+                    K=params["K"],
+                    c=params["c"],
+                    alpha_func=alpha_func,
+                    sampler=sampler,
+                    field_name=params["field"],
+                    rng=rng,
+                    max_draws=config.max_draws,
+                )
+
+                rows.append(
+                    {
+                        **params,
+                        "trial": trial,
+                        **result,
+                    }
+                )
+
+                progress_bar.update(1)
 
     return pd.DataFrame(rows)
 
@@ -313,7 +329,7 @@ def main() -> None:
     # ============================================================
     config = ExperimentConfig(
         N_values=[3],
-        K_values=list(range(2, 101, 4)),
+        K_values=list(range(2, 201, 4)),
         c_values=[1.0],
         trials=20,
         versions=[1],
@@ -331,7 +347,7 @@ def main() -> None:
     confirm_run(config)
     confirm_overwrite(output_dir=output_dir, prefix=prefix)
 
-    results = run_experiment_grid(config)
+    results = run_experiment_grid(config, show_progress=True)
     raw_path, summary_path = save_results(
         results,
         output_dir=output_dir,

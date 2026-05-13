@@ -6,3 +6,4 @@ pytest
 ruff
 pre-commit
 requests
+tqdm==4.67.3
