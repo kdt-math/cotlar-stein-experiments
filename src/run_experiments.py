@@ -313,7 +313,7 @@ def main() -> None:
     # ============================================================
     config = ExperimentConfig(
         N_values=[3],
-        K_values=list(range(2, 21)),
+        K_values=list(range(2, 101, 4)),
         c_values=[1.0],
         trials=20,
         versions=[1],

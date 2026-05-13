@@ -28,26 +28,16 @@ def format_n_value(N: int) -> str:
 
 
 def add_ratio_column(results: pd.DataFrame) -> pd.DataFrame:
-    """Return a copy with derived plotting columns added.
+    """Return a copy with the ratio sum_norm / alpha added.
 
-    Added columns:
-        sum_norm_over_alpha: sum_norm / alpha, set to NaN if alpha is zero.
-        log_sum_norm: log(sum_norm), set to NaN if sum_norm is nonpositive.
+    If alpha is zero, the ratio is set to NaN.
     """
     copied = results.copy()
-
     copied["sum_norm_over_alpha"] = np.where(
         copied["alpha"] != 0,
         copied["sum_norm"] / copied["alpha"],
         np.nan,
     )
-
-    copied["log_sum_norm"] = np.nan
-    positive_sum_norm = copied["sum_norm"] > 0
-    copied.loc[positive_sum_norm, "log_sum_norm"] = np.log(
-        copied.loc[positive_sum_norm, "sum_norm"],
-    )
-
     return copied
 
 
@@ -55,6 +45,24 @@ def mean_by_k(results: pd.DataFrame, metric: str) -> pd.DataFrame:
     """Compute the mean of a metric grouped by K."""
     grouped = results.groupby("K", as_index=False)[metric].mean()
     return grouped.sort_values("K").dropna(subset=[metric])
+
+
+def log_mean_by_k(results: pd.DataFrame, metric: str) -> pd.DataFrame:
+    """Compute log of the mean of a positive metric grouped by K.
+
+    This returns log(mean(metric)) for each K, not mean(log(metric)).
+    Nonpositive means are dropped because their logarithms are undefined.
+    """
+    grouped = mean_by_k(results, metric)
+    if grouped.empty:
+        return grouped
+
+    grouped = grouped[grouped[metric] > 0].copy()
+    if grouped.empty:
+        return grouped
+
+    grouped[metric] = np.log(grouped[metric])
+    return grouped
 
 
 def plot_single_curve_vs_k(
@@ -86,7 +94,7 @@ def plot_single_curve_vs_k(
     plt.close(fig)
 
 
-def plot_version_curves_vs_k(
+def plot_single_log_mean_curve_vs_k(
     results: pd.DataFrame,
     metric: str,
     *,
@@ -94,35 +102,20 @@ def plot_version_curves_vs_k(
     ylabel: str,
     output_path: str | Path,
 ) -> None:
-    """Plot mean curves versus K, one curve for each version."""
+    """Plot log(mean(metric)) versus K for one version."""
     if results.empty:
         return
 
-    fig, ax = plt.subplots()
-    plotted_any_curve = False
-
-    for version, version_results in results.groupby("version"):
-        grouped = mean_by_k(version_results, metric)
-        if grouped.empty:
-            continue
-
-        ax.plot(
-            grouped["K"],
-            grouped[metric],
-            marker="o",
-            label=f"Version {version}",
-        )
-        plotted_any_curve = True
-
-    if not plotted_any_curve:
-        plt.close(fig)
+    grouped = log_mean_by_k(results, metric)
+    if grouped.empty:
         return
 
+    fig, ax = plt.subplots()
+    ax.plot(grouped["K"], grouped[metric], marker="o")
     ax.set_xlabel("K")
     ax.set_ylabel(ylabel)
     ax.set_title(title)
     ax.grid(True)
-    ax.legend()
 
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -182,6 +175,30 @@ def plot_slice(
     )
 
     plot_single_curve_vs_k(
+        version1,
+        metric="sum_norm_over_alpha",
+        title=f"Version 1: Mean Ratio ||sum S_j|| / alpha vs K ({label})",
+        ylabel="Mean ||sum S_j|| / alpha",
+        output_path=slice_dir / "version1_sum_norm_over_alpha_vs_k.png",
+    )
+
+    plot_single_log_mean_curve_vs_k(
+        version1,
+        metric="sum_norm",
+        title=f"Version 1: Log Mean Sum Norm vs K ({label})",
+        ylabel="log(mean ||sum S_j||)",
+        output_path=slice_dir / "version1_log_mean_sum_norm_vs_k.png",
+    )
+
+    plot_single_log_mean_curve_vs_k(
+        version1,
+        metric="sum_norm_over_alpha",
+        title=f"Version 1: Log Mean Ratio ||sum S_j|| / alpha vs K ({label})",
+        ylabel="log(mean ||sum S_j|| / alpha)",
+        output_path=slice_dir / "version1_log_mean_sum_norm_over_alpha_vs_k.png",
+    )
+
+    plot_single_curve_vs_k(
         version2,
         metric="draws",
         title=f"Version 2: Mean Draws vs K ({label})",
@@ -197,20 +214,28 @@ def plot_slice(
         output_path=slice_dir / "version2_sum_norm_vs_k.png",
     )
 
-    plot_version_curves_vs_k(
-        sliced,
+    plot_single_curve_vs_k(
+        version2,
         metric="sum_norm_over_alpha",
-        title=f"Mean Ratio ||sum S_j|| / alpha vs K ({label})",
+        title=f"Version 2: Mean Ratio ||sum S_j|| / alpha vs K ({label})",
         ylabel="Mean ||sum S_j|| / alpha",
-        output_path=slice_dir / "sum_norm_over_alpha_vs_k.png",
+        output_path=slice_dir / "version2_sum_norm_over_alpha_vs_k.png",
     )
 
-    plot_version_curves_vs_k(
-        sliced,
-        metric="log_sum_norm",
-        title=f"Mean Log Sum Norm vs K ({label})",
-        ylabel="Mean log ||sum S_j||",
-        output_path=slice_dir / "log_sum_norm_vs_k.png",
+    plot_single_log_mean_curve_vs_k(
+        version2,
+        metric="sum_norm",
+        title=f"Version 2: Log Mean Sum Norm vs K ({label})",
+        ylabel="log(mean ||sum S_j||)",
+        output_path=slice_dir / "version2_log_mean_sum_norm_vs_k.png",
+    )
+
+    plot_single_log_mean_curve_vs_k(
+        version2,
+        metric="sum_norm_over_alpha",
+        title=f"Version 2: Log Mean Ratio ||sum S_j|| / alpha vs K ({label})",
+        ylabel="log(mean ||sum S_j|| / alpha)",
+        output_path=slice_dir / "version2_log_mean_sum_norm_over_alpha_vs_k.png",
     )
 
 

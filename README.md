@@ -6,8 +6,9 @@ The experiments are designed to answer questions such as:
 
 - How many randomly sampled operators can be accepted under a Cotlar-Stein admissibility rule?
 - How large is the norm of the accepted operator sum?
-- How does the logarithm of the accepted sum norm grow with `K`?
+- How does the logarithm of the average accepted sum norm grow with `K`?
 - How close is the observed norm of the sum to the Cotlar-Stein upper bound?
+- How does the logarithm of the average ratio `sum_norm / alpha` grow with `K`?
 - In the stopping-time version, how many random draws are needed to accept `K` operators?
 
 ---
@@ -807,30 +808,90 @@ figures/
         c_1p0/
           version1_accepted_count_vs_k.png
           version1_sum_norm_vs_k.png
+          version1_sum_norm_over_alpha_vs_k.png
+          version1_log_mean_sum_norm_vs_k.png
+          version1_log_mean_sum_norm_over_alpha_vs_k.png
           version2_draws_vs_k.png
           version2_sum_norm_vs_k.png
-          sum_norm_over_alpha_vs_k.png
-          log_sum_norm_vs_k.png
+          version2_sum_norm_over_alpha_vs_k.png
+          version2_log_mean_sum_norm_vs_k.png
+          version2_log_mean_sum_norm_over_alpha_vs_k.png
 ```
 
-The ratio plot
+All plot filenames begin with the version name, either `version1_` or `version2_`. This keeps the output files easy to compare and avoids ambiguity when both greedy procedures are run in the same experiment.
+
+### Version 1 plots
+
+Version 1 produces these plots when Version 1 data are available:
+
+```text
+version1_accepted_count_vs_k.png
+version1_sum_norm_vs_k.png
+version1_sum_norm_over_alpha_vs_k.png
+version1_log_mean_sum_norm_vs_k.png
+version1_log_mean_sum_norm_over_alpha_vs_k.png
+```
+
+### Version 2 plots
+
+Version 2 produces these plots when Version 2 data are available:
+
+```text
+version2_draws_vs_k.png
+version2_sum_norm_vs_k.png
+version2_sum_norm_over_alpha_vs_k.png
+version2_log_mean_sum_norm_vs_k.png
+version2_log_mean_sum_norm_over_alpha_vs_k.png
+```
+
+The ratio plots
 
 ```math
 \frac{\left\|\sum S_j\right\|_2}{\alpha}
 ```
 
-is useful because it shows how close the observed sum norm is to the Cotlar-Stein upper bound.
+are useful because they show how close the observed sum norm is to the Cotlar-Stein upper bound.
 
 - Values near 1 indicate the bound is relatively tight.
 - Values much smaller than 1 indicate the bound is loose for that experiment.
 
-The log-sum-norm plot
+The log-mean-sum-norm plots show
 
 ```math
-\log\left\|\sum S_j\right\|_2
+\log\left(\operatorname{mean}\left(\left\|\sum S_j\right\|_2\right)\right)
 ```
 
-is useful for studying the growth rate of the accepted operator sum. The code computes `log_sum_norm` trial-by-trial and then plots the mean value over trials for each `K`. If `sum_norm` is zero, the logarithm is recorded as `NaN` and omitted from the plotted mean.
+as a function of `K`. The mean is computed first over trials for each fixed `K`, and then the logarithm is taken. In other words, the plotted quantity is:
+
+```text
+log(mean(sum_norm))
+```
+
+not
+
+```text
+mean(log(sum_norm))
+```
+
+The log-mean-ratio plots show
+
+```math
+\log\left(\operatorname{mean}\left(\frac{\left\|\sum S_j\right\|_2}{\alpha}\right)\right)
+```
+
+as a function of `K`. Equivalently, the plotted quantity is:
+
+```text
+log(mean(sum_norm_over_alpha))
+```
+
+not
+
+```text
+mean(log(sum_norm_over_alpha))
+```
+
+If the mean value is zero or nonpositive for a fixed `K`, the logarithm is undefined and that value is omitted from the corresponding log plot.
 
 ---
 
@@ -962,10 +1023,11 @@ The most useful comparisons are often:
 1. Version 1 accepted count versus `K`.
 2. Version 2 draws versus `K`.
 3. Sum norm versus `K`.
-4. Log sum norm versus `K`.
+4. Log of the mean sum norm versus `K`.
 5. Ratio of observed sum norm to `alpha` versus `K`.
-6. Linear threshold versus square-root and logarithmic thresholds.
-7. Real versus complex fields.
+6. Log of the mean ratio `sum_norm / alpha` versus `K`.
+7. Linear threshold versus square-root and logarithmic thresholds.
+8. Real versus complex fields.
 
 These comparisons help separate three effects:
 
