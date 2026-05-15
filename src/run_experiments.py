@@ -7,10 +7,10 @@ from dataclasses import dataclass
 from dataclasses import field as dataclass_field
 from pathlib import Path
 from typing import Any, Literal
-from tqdm import tqdm
 
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 
 from src.config import (
     DEFAULT_C_VALUES,
@@ -19,7 +19,7 @@ from src.config import (
     AlphaFunction,
     get_alpha_function,
 )
-from src.greedy import Sampler, run_version1, run_version2
+from src.greedy import Sampler, run_version1, run_version2, run_version3
 from src.sampling import (
     Field,
     sample_spectral_ball_haar_truncation,
@@ -27,7 +27,7 @@ from src.sampling import (
     sample_spectral_ball_scaled_gaussian,
 )
 
-Version = Literal[1, 2]
+Version = Literal[1, 2, 3]
 
 SAMPLERS: dict[str, Sampler] = {
     "scaled_gaussian": sample_spectral_ball_scaled_gaussian,
@@ -68,8 +68,8 @@ def validate_config(config: ExperimentConfig) -> None:
         raise ValueError(msg)
 
     for version in config.versions:
-        if version not in {1, 2}:
-            msg = f"version must be 1 or 2, got {version}."
+        if version not in {1, 2, 3}:
+            msg = f"version must be 1, 2, or 3, got {version}."
             raise ValueError(msg)
 
     if config.sampler_name not in SAMPLERS:
@@ -105,7 +105,7 @@ def run_single_trial(
     rng: np.random.Generator,
     max_draws: int,
 ) -> dict[str, Any]:
-    """Run one trial of Version 1 or Version 2."""
+    """Run one trial of Version 1, Version 2, or Version 3."""
     if version == 1:
         return run_version1(
             N=N,
@@ -117,7 +117,19 @@ def run_single_trial(
             rng=rng,
         )
 
-    return run_version2(
+    if version == 2:
+        return run_version2(
+            N=N,
+            K=K,
+            alpha_func=alpha_func,
+            c=c,
+            sampler=sampler,
+            field=field_name,
+            rng=rng,
+            max_draws=max_draws,
+        )
+
+    return run_version3(
         N=N,
         K=K,
         alpha_func=alpha_func,
@@ -125,7 +137,6 @@ def run_single_trial(
         sampler=sampler,
         field=field_name,
         rng=rng,
-        max_draws=max_draws,
     )
 
 
@@ -329,10 +340,10 @@ def main() -> None:
     # ============================================================
     config = ExperimentConfig(
         N_values=[3],
-        K_values=list(range(2, 201, 4)),
+        K_values=list(range(2, 101, 4)),
         c_values=[1.0],
         trials=20,
-        versions=[1],
+        versions=[3],
         alpha_names=["sqrt"],
         sampler_name="rejection",
         field_values=["real"],

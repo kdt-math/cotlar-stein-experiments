@@ -10,6 +10,7 @@ The experiments are designed to answer questions such as:
 - How close is the observed norm of the sum to the Cotlar-Stein upper bound?
 - How does the logarithm of the average ratio `sum_norm / alpha` grow with `K`?
 - In the stopping-time version, how many random draws are needed to accept `K` operators?
+- In the unfiltered baseline version, how large do `sum_norm`, `A_norm`, and `B_norm` become without Cotlar-Stein admissibility filtering?
 
 ---
 
@@ -105,7 +106,7 @@ is relative to the allowed Cotlar-Stein scale `alpha(K,N,c)`.
 
 ## Experiment versions
 
-The project implements two greedy selection procedures.
+The project implements two greedy selection procedures and one unfiltered baseline procedure.
 
 ### Version 1: finite sampling budget
 
@@ -159,6 +160,33 @@ Important quantities include:
 - `B_norm`.
 
 Version 2 can be much slower than Version 1 when the threshold is strict, because the algorithm may reject many candidate operators.
+
+### Version 3: unfiltered random sampling baseline
+
+Given `K`, draw exactly `K` candidate operators and accept all of them.
+
+Unlike Version 1 and Version 2, Version 3 does **not** impose the Cotlar-Stein admissibility condition after each draw. In other words, it does not require:
+
+```math
+\|A_{\mathcal{S}}\|_2 \le \alpha(K,N,c),
+\qquad
+\|B_{\mathcal{S}}\|_2 \le \alpha(K,N,c).
+```
+
+The final family always satisfies:
+
+```math
+|\mathcal{S}|=K.
+```
+
+Important quantities include:
+
+- `sum_norm`: the observed norm of the unfiltered operator sum.
+- `A_norm`: the observed value of `||A_S||_2`.
+- `B_norm`: the observed value of `||B_S||_2`.
+- `cotlar_bound`: the actual Cotlar-Stein quantity `sqrt(A_norm * B_norm)`.
+
+Version 3 is useful as a baseline because it separates the effect of random cancellation from the effect of greedy Cotlar-Stein filtering. It answers the question: what happens if we sample from the spectral-norm ball and do not impose any additional admissibility restriction?
 
 ---
 
@@ -512,7 +540,7 @@ cotlar-stein-experiments/
 - `src/config.py`: threshold functions and default parameter values.
 - `src/sampling.py`: random matrix samplers.
 - `src/cotlar.py`: construction of the Cotlar-Stein matrices and related norms.
-- `src/greedy.py`: Version 1 and Version 2 greedy selection algorithms.
+- `src/greedy.py`: Version 1, Version 2, and Version 3 selection algorithms.
 - `src/run_experiments.py`: Monte Carlo experiment runner.
 - `src/plots.py`: plotting utilities.
 
@@ -574,7 +602,7 @@ config = ExperimentConfig(
     K_values=list(range(2, 21)),
     c_values=[1.0],
     trials=20,
-    versions=[1, 2],
+    versions=[1, 2, 3],
     alpha_names=["linear"],
     sampler_name="scaled_gaussian",
     field_values=["real"],
@@ -678,7 +706,19 @@ runs only Version 1.
 versions=[1, 2]
 ```
 
-runs both versions.
+runs the two admissibility-based versions.
+
+```python
+versions=[3]
+```
+
+runs only the unfiltered baseline.
+
+```python
+versions=[1, 2, 3]
+```
+
+runs all three versions.
 
 ### `alpha_names`
 
@@ -766,7 +806,15 @@ Important meanings:
 - `A_norm`: observed norm of the matrix `A_S`.
 - `B_norm`: observed norm of the matrix `B_S`.
 - `alpha`: threshold used in the admissibility test.
-- `cotlar_bound`: equal to `alpha` when `alpha = beta`.
+- `cotlar_bound`: the actual Cotlar-Stein quantity `sqrt(A_norm * B_norm)`.
+
+The column `alpha` records the threshold used for admissibility in Versions 1 and 2. The column `cotlar_bound` records the actual value
+
+```math
+\sqrt{\|A_{\mathcal{S}}\|_2\,\|B_{\mathcal{S}}\|_2}.
+```
+
+For Versions 1 and 2, admissibility gives `A_norm <= alpha` and `B_norm <= alpha`, so the actual Cotlar-Stein quantity is at most `alpha`. For Version 3, this need not be true because no admissibility filter is applied.
 
 The summary CSV groups by:
 
@@ -808,17 +856,40 @@ figures/
         c_1p0/
           version1_accepted_count_vs_k.png
           version1_sum_norm_vs_k.png
+          version1_A_norm_vs_k.png
+          version1_B_norm_vs_k.png
           version1_sum_norm_over_alpha_vs_k.png
           version1_log_mean_sum_norm_vs_k.png
+          version1_log_mean_A_norm_vs_k.png
+          version1_log_mean_B_norm_vs_k.png
           version1_log_mean_sum_norm_over_alpha_vs_k.png
           version2_draws_vs_k.png
           version2_sum_norm_vs_k.png
+          version2_A_norm_vs_k.png
+          version2_B_norm_vs_k.png
           version2_sum_norm_over_alpha_vs_k.png
           version2_log_mean_sum_norm_vs_k.png
+          version2_log_mean_A_norm_vs_k.png
+          version2_log_mean_B_norm_vs_k.png
           version2_log_mean_sum_norm_over_alpha_vs_k.png
+          version3_accepted_count_vs_k.png
+          version3_sum_norm_vs_k.png
+          version3_A_norm_vs_k.png
+          version3_B_norm_vs_k.png
+          version3_sum_norm_over_alpha_vs_k.png
+          version3_log_mean_sum_norm_vs_k.png
+          version3_log_mean_A_norm_vs_k.png
+          version3_log_mean_B_norm_vs_k.png
+          version3_log_mean_sum_norm_over_alpha_vs_k.png
 ```
 
-All plot filenames begin with the version name, either `version1_` or `version2_`. This keeps the output files easy to compare and avoids ambiguity when both greedy procedures are run in the same experiment.
+All plot filenames begin with the version name: `version1_`, `version2_`, or `version3_`. This keeps the output files easy to compare and avoids ambiguity when multiple procedures are run in the same experiment.
+
+When generating plots, the script asks whether to include an optional custom comparison curve on eligible square-root-threshold sum-norm plots. The current custom comparison curve is:
+
+```math
+\sqrt{\log(2N)}\,K^{1/4}.
+```
 
 ### Version 1 plots
 
@@ -827,8 +898,12 @@ Version 1 produces these plots when Version 1 data are available:
 ```text
 version1_accepted_count_vs_k.png
 version1_sum_norm_vs_k.png
+version1_A_norm_vs_k.png
+version1_B_norm_vs_k.png
 version1_sum_norm_over_alpha_vs_k.png
 version1_log_mean_sum_norm_vs_k.png
+version1_log_mean_A_norm_vs_k.png
+version1_log_mean_B_norm_vs_k.png
 version1_log_mean_sum_norm_over_alpha_vs_k.png
 ```
 
@@ -839,10 +914,34 @@ Version 2 produces these plots when Version 2 data are available:
 ```text
 version2_draws_vs_k.png
 version2_sum_norm_vs_k.png
+version2_A_norm_vs_k.png
+version2_B_norm_vs_k.png
 version2_sum_norm_over_alpha_vs_k.png
 version2_log_mean_sum_norm_vs_k.png
+version2_log_mean_A_norm_vs_k.png
+version2_log_mean_B_norm_vs_k.png
 version2_log_mean_sum_norm_over_alpha_vs_k.png
 ```
+
+### Version 3 plots
+
+Version 3 produces these plots when Version 3 data are available:
+
+```text
+version3_accepted_count_vs_k.png
+version3_sum_norm_vs_k.png
+version3_A_norm_vs_k.png
+version3_B_norm_vs_k.png
+version3_sum_norm_over_alpha_vs_k.png
+version3_log_mean_sum_norm_vs_k.png
+version3_log_mean_A_norm_vs_k.png
+version3_log_mean_B_norm_vs_k.png
+version3_log_mean_sum_norm_over_alpha_vs_k.png
+```
+
+For Version 3, the `A_norm` and `B_norm` plots are especially useful because this version does not enforce the admissibility conditions `A_norm <= alpha` and `B_norm <= alpha`.
+
+The `A_norm` and `B_norm` plots show the growth of the two Cotlar-Stein interaction matrices separately. These are useful because the two norms need not be equal for general matrix families.
 
 The ratio plots
 
@@ -1004,6 +1103,8 @@ or compare threshold regimes:
 alpha_names=["linear", "sqrt", "log"]
 ```
 
+For Version 3, use the same sampler and parameter ranges as Versions 1 and 2 when you want a direct unfiltered baseline comparison.
+
 For Version 2, be careful with strict thresholds. If `c` is too small or the threshold is constant, the process may take many draws to accept `K` operators. Increase `max_draws` only after confirming that the experiment is reasonable.
 
 ---
@@ -1022,15 +1123,18 @@ The most useful comparisons are often:
 
 1. Version 1 accepted count versus `K`.
 2. Version 2 draws versus `K`.
-3. Sum norm versus `K`.
-4. Log of the mean sum norm versus `K`.
-5. Ratio of observed sum norm to `alpha` versus `K`.
-6. Log of the mean ratio `sum_norm / alpha` versus `K`.
-7. Linear threshold versus square-root and logarithmic thresholds.
-8. Real versus complex fields.
+3. Version 3 unfiltered sum norm versus `K`.
+4. Sum norm versus `K`.
+5. `A_norm` and `B_norm` versus `K`.
+6. Log of the mean sum norm versus `K`.
+7. Ratio of observed sum norm to `alpha` versus `K`.
+8. Log of the mean ratio `sum_norm / alpha` versus `K`.
+9. Linear threshold versus square-root and logarithmic thresholds.
+10. Real versus complex fields.
 
 These comparisons help separate three effects:
 
 - how often operators are accepted,
 - how large the accepted sum becomes,
-- how sharp or loose the Cotlar-Stein bound is for the selected family.
+- how sharp or loose the Cotlar-Stein bound is for the selected family,
+- how much of the observed behavior is already present in the unfiltered Version 3 baseline.

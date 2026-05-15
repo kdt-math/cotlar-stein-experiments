@@ -41,6 +41,7 @@ def _final_stats(
     """Compute summary statistics for a selected family."""
     norm_A, norm_B = cotlar_matrix_norms(S_list)
     sum_norm = sum_operator_norm(S_list)
+    cotlar_bound = float(np.sqrt(norm_A * norm_B))
 
     return {
         "accepted_count": len(S_list),
@@ -50,7 +51,7 @@ def _final_stats(
         "A_norm": norm_A,
         "B_norm": norm_B,
         "alpha": alpha,
-        "cotlar_bound": alpha,
+        "cotlar_bound": cotlar_bound,
     }
 
 
@@ -145,4 +146,45 @@ def run_version2(
         draws=total_draws,
         alpha=alpha,
         terminated=terminated,
+    )
+
+
+def run_version3(
+    N: int,
+    K: int,
+    alpha_func: AlphaFunction,
+    c: float,
+    sampler: Sampler,
+    field: Field = "complex",
+    rng: np.random.Generator | None = None,
+) -> dict[str, Any]:
+    """Run Version 3: draw exactly K candidates and accept all of them.
+
+    This is the unfiltered baseline. Unlike Version 1 and Version 2, this
+    version does not check whether appending a candidate keeps the Cotlar--Stein
+    matrix norms below alpha(K, N, c). The final selected family always has
+    size K.
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+
+    alpha = alpha_func(K, N, c)
+    selected: list[Matrix] = []
+    total_draws = 0
+
+    for _ in range(K):
+        candidate, draw_cost = _draw_candidate(
+            sampler=sampler,
+            N=N,
+            field=field,
+            rng=rng,
+        )
+        total_draws += draw_cost
+        selected.append(candidate)
+
+    return _final_stats(
+        S_list=selected,
+        draws=total_draws,
+        alpha=alpha,
+        terminated=True,
     )
